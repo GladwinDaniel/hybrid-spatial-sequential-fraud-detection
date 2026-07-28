@@ -1,0 +1,2 @@
+cluster_id,n_sequences,risk_score,min_sup_frac,min_sup_count,n_patterns
+0,13736,0.9953937422669432,0.050231378676470595,689,0

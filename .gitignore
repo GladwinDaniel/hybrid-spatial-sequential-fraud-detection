@@ -1,0 +1,47 @@
+# ─── Data files (large / proprietary) ───────────────────────
+data/raw/
+data/processed/
+
+# ─── Trained models (large binary files) ─────────────────────
+outputs/models/
+
+# ─── Generated figures & reports (reproducible) ───────────────
+# Uncomment below if you want to exclude outputs too
+# outputs/figures/
+# outputs/reports/
+
+# ─── Python cache ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ─── Virtual environments ─────────────────────────────────────
+venv/
+env/
+.venv/
+.env
+
+# ─── Jupyter ──────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── OS files ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Logs ─────────────────────────────────────────────────────
+*.log
+outputs/logs/
+
+# ─── IDE ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
