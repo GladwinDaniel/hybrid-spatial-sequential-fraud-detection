@@ -1,0 +1,5 @@
+model,auc_roc,pr_auc,f1,precision,recall,prec@top10%
+Baseline XGBoost,0.8836,0.5149,0.232,0.1375,0.7408,0.158
+Sequential-only,0.8824,0.5229,0.2278,0.1346,0.7408,0.158
+Spatial-only,0.8829,0.5287,0.2416,0.145,0.7225,0.154
+Proposed Hybrid,0.8827,0.535,0.2366,0.1419,0.711,0.1525
