@@ -35,7 +35,7 @@ IEEE-CIS Dataset
       │
       ▼
 ┌─────────────────────────┐
-│  Phase 4: XGBoost       │  Spatial + Sequential + Raw features
+│  Phase 4: CatBoost      │  CTS + Spatial + Sequential + Raw features
 │  Classification + SHAP  │  Interpretability via SHAP values
 └─────────────────────────┘
       │
@@ -154,6 +154,28 @@ min_support(Ci) = base_support × (1 / risk_score(Ci))
 - **High-risk clusters** (risk_score > 2.0) → lower min_support → more patterns extracted → **more sensitive detection**
 - **Low-risk clusters** (risk_score < 0.5) → higher min_support → fewer false positives
 
+### Contextual Trajectory Surprise (CTS)
+
+The classifier now receives a second interaction layer rather than treating
+spatial and sequential outputs as independent columns. For each transaction,
+CTS combines:
+
+- `contextual_surprise = anomaly_score × (1 + log(1 + risk_score))`
+- `spatial_switch` and `spatial_switch_rate`: whether the user's recent path changes spatial cluster
+- `spatial_inconsistency`: deviation from the user's typical normalized distance
+
+This captures a more specific fraud hypothesis: a sequence becomes more
+suspicious when it is unusual for the local risk context, when the user moves
+between spatial contexts, or when its distance profile departs from that
+user's normal trajectory. This is proposed as the project's differentiating
+method and should be validated against a targeted literature review before
+being described as globally unprecedented.
+
+On the current 100K-row time-based split, CTS improved the hybrid model from
+PR-AUC `0.5350` to `0.5418`, ROC-AUC `0.8827` to `0.8866`, F1 `0.2366` to
+`0.2546`, and precision@top-10% `0.1525` to `0.1620`. These values are an
+experiment result, not a guaranteed full-dataset outcome.
+
 ---
 
 ## ⚙️ Configuration (`config.py`)
@@ -169,7 +191,8 @@ All hyperparameters are centralized:
 | `PREFIXSPAN_BASE_SUPPORT` | `0.05` | Base minimum support (5%) |
 | `SUPPORT_FLOOR` | `0.01` | Minimum adaptive support floor |
 | `SUPPORT_CEILING` | `0.20` | Maximum adaptive support ceiling |
-| `XGB_PARAMS` | see config | XGBoost hyperparameters |
+| `CATBOOST_PARAMS` | see config | Primary hybrid classifier hyperparameters |
+| `XGB_PARAMS` | see config | XGBoost ablation hyperparameters |
 
 ---
 
