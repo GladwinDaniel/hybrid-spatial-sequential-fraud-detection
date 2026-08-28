@@ -126,7 +126,7 @@ def phase5(artifacts: dict, force: bool) -> dict:
     y_train = artifacts.get("y_train")
     X_test  = artifacts.get("X_test")
     y_test  = artifacts.get("y_test")
-    hybrid_model = artifacts.get("models", {}).get("xgb")
+    hybrid_model = artifacts.get("models", {}).get("catboost")
 
     if X_train is None or X_test is None:
         # Rebuild feature vectors
@@ -138,7 +138,7 @@ def phase5(artifacts: dict, force: bool) -> dict:
         X_test,  y_test  = build_feature_vector(test_df,  cluster_df, scores_df)
 
     if hybrid_model is None:
-        hybrid_model = load_model("xgb")
+        hybrid_model = load_model("catboost")
 
     return run_evaluation(X_train, y_train, X_test, y_test, hybrid_model, force=force)
 

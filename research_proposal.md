@@ -3,7 +3,7 @@
 
 > **Course Project** | Sequential Data Mining & Spatial Data Mining  
 > **Dataset:** IEEE-CIS Fraud Detection Dataset (Kaggle / Vesta Corporation)  
-> **Document Version:** 1.0 | July 2026
+> **Document Version:** 1.1 | August 2026
 
 ---
 
@@ -38,6 +38,31 @@ While both approaches have demonstrated individual effectiveness, they are almos
 ---
 
 ## 2. Literature Review
+
+### Citation audit and updated positioning
+
+The literature review was rechecked against current scholarly search results
+in August 2026. The project should not claim that no prior work combines
+spatial and temporal information: international research already includes
+temporal heterogeneous GNNs, temporal graph attention, and causal temporal
+GNNs. India-focused search results likewise show recent graph-based and
+adaptive-risk fraud detection studies. These methods are important comparison
+families, but they generally learn graph or neural representations rather than
+mining interpretable, cluster-specific sequential pattern libraries.
+
+One existing entry requires correction: the former Paper 5 citation used an
+unrelated arXiv identifier and must not be used as evidence. The verified
+CaT-GNN preprint is Duan et al., *CaT-GNN: Enhancing
+Credit Card Fraud Detection via Causal Temporal Graph Neural Networks*,
+`arXiv:2402.14708`.
+
+Accordingly, the defensible contribution claim is narrower: this project
+proposes **Contextual Trajectory Surprise (CTS)**, which combines
+risk-conditioned sequential surprise with user-level spatial switching and
+distance inconsistency, and evaluates it with interpretable spatially
+conditioned PrefixSpan libraries. This is a proposed research contribution,
+not a claim of universal first discovery. A systematic database search and
+duplicate-title check should be completed before publication.
 
 The following 15 papers span the domains of sequential pattern mining, spatial data mining, fraud detection, and hybrid approaches — forming the theoretical and empirical foundation for this project.
 
@@ -88,13 +113,8 @@ The following 15 papers span the domains of sequential pattern mining, spatial d
 ---
 
 ### Paper 5
-**Title:** "Graph Neural Networks for Fraud Detection in Financial Transaction Networks"  
-**Authors:** Yao, Dou & Wen  
-**Year:** 2021  
-**Source:** arXiv:2106.02048 (Published in IEEE BigData 2021)  
-**Summary:** Modeled financial transactions as a heterogeneous graph where nodes are users/merchants and edges are transactions. Applied Graph Convolutional Networks (GCN) to detect fraud based on network topology and relational patterns. Achieved state-of-the-art performance on multiple datasets.  
-**Relevance:** Provides a strong baseline comparison for graph-based methods and validates that relational structure (between entities) improves fraud detection.  
-**Limitation:** Static graph assumption; does not capture temporal sequences or spatial geographic features.
+**Status:** Withdrawn pending bibliographic verification. The previously listed title, authors, and source could not be matched reliably, and the former arXiv identifier was unrelated to fraud detection.
+**Use in this proposal:** This entry is excluded from the evidence supporting the research gap. The verified temporal-graph references listed in the audit note and Paper 9 should be used instead.
 
 ---
 
@@ -381,13 +401,13 @@ IEEE-CIS Dataset
   - Identity features (DeviceType, id columns)
 
 **4.2 Classification Model**
-- Primary: **XGBoost** (state-of-art on tabular fraud data)
-- Secondary: **Random Forest** (for comparison)
-- Baseline: **Logistic Regression** (benchmark)
-- Evaluate using stratified 5-fold cross-validation (time-aware)
+- Primary: **CatBoost** for the CTS hybrid feature matrix
+- Secondary: **XGBoost** as the main gradient-boosting ablation
+- Additional comparisons: **Random Forest** and **Logistic Regression**
+- Evaluate using the chronological 80/20 train/test split; do not describe this implementation as 5-fold cross-validation
 
 **4.3 Explainability via SHAP**
-- Compute SHAP values for XGBoost predictions
+- Compute SHAP values for CatBoost predictions
 - Analyze feature importance per spatial cluster
 - Identify which sequential features drive fraud detection in each region
 - Generate summary SHAP plots for report

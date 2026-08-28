@@ -94,6 +94,19 @@ XGB_PARAMS = {
     "random_state":    RANDOM_SEED,
     "n_jobs":          -1,
 }
+CATBOOST_PARAMS = {
+    "iterations":       500,
+    "depth":             7,
+    "learning_rate":     0.05,
+    "loss_function":     "Logloss",
+    "eval_metric":       "AUC",
+    "auto_class_weights": "Balanced",
+    "l2_leaf_reg":        5.0,
+    "random_strength":    1.0,
+    "random_seed":        RANDOM_SEED,
+    "thread_count":       -1,
+    "verbose":            False,
+}
 RF_PARAMS = {
     "n_estimators":  200,
     "max_depth":     10,

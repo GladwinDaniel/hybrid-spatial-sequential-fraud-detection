@@ -2,10 +2,11 @@
 src/classification.py — Phase 4: Feature Vector Construction, Model Training,
 and SHAP Explainability.
 
-Trains three models:
-  - XGBoost (primary)
-  - Random Forest (comparison)
-  - Logistic Regression (baseline)
+Trains four models:
+    - CatBoost (primary hybrid classifier)
+    - XGBoost (gradient-boosting ablation)
+    - Random Forest (comparison)
+    - Logistic Regression (baseline)
 
 Key outputs (saved to outputs/models/):
   - xgb_model.pkl, rf_model.pkl, lr_model.pkl
@@ -39,10 +40,18 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from config import (
     MODELS_DIR, FIGURES_DIR, REPORTS_DIR,
-    XGB_PARAMS, RF_PARAMS, LR_PARAMS,
+    XGB_PARAMS, CATBOOST_PARAMS, RF_PARAMS, LR_PARAMS,
     SHAP_SAMPLE_SIZE, TOP_K_PERCENT, RANDOM_SEED,
     D_COLS, C_COLS,
 )
+
+
+INTERACTION_COLS = [
+    "contextual_surprise",
+    "spatial_switch",
+    "spatial_switch_rate",
+    "spatial_inconsistency",
+]
 
 
 # ─────────────────────────────────────────────────────────────
@@ -95,6 +104,36 @@ def build_feature_vector(
         df = df.merge(user_score, on="user_key", how="left")
     df["anomaly_score"] = df.get("anomaly_score", pd.Series(0.5, index=df.index)).fillna(0.5)
 
+    # Contextual trajectory features: expose how sequential surprise behaves
+    # inside the transaction's local spatial context.
+    df["contextual_surprise"] = (
+        df["anomaly_score"] * (1.0 + np.log1p(df["risk_score"].clip(lower=0)))
+    )
+    if "TransactionDT" in df.columns and "user_key" in df.columns:
+        ordered = df[["user_key", "TransactionDT", "cluster_label"]].copy()
+        ordered["_row_order"] = np.arange(len(ordered))
+        ordered = ordered.sort_values(["user_key", "TransactionDT", "_row_order"])
+        ordered["_previous_cluster"] = ordered.groupby("user_key")["cluster_label"].shift(1)
+        ordered["spatial_switch"] = (
+            ordered["_previous_cluster"].notna()
+            & ordered["cluster_label"].ne(ordered["_previous_cluster"])
+        ).astype(float)
+        ordered["spatial_switch_rate"] = ordered.groupby("user_key")["spatial_switch"].transform("mean")
+        ordered = ordered.sort_values("_row_order")
+        df["spatial_switch"] = ordered["spatial_switch"].to_numpy()
+        df["spatial_switch_rate"] = ordered["spatial_switch_rate"].to_numpy()
+    else:
+        df["spatial_switch"] = 0.0
+        df["spatial_switch_rate"] = 0.0
+
+    distance_cols = [c for c in ["dist1_norm", "dist2_norm"] if c in df.columns]
+    if distance_cols and "user_key" in df.columns:
+        local_distance = df[distance_cols].mean(axis=1)
+        local_median = local_distance.groupby(df["user_key"]).transform("median")
+        df["spatial_inconsistency"] = (local_distance - local_median).abs()
+    else:
+        df["spatial_inconsistency"] = 0.0
+
     # ── Feature selection ──────────────────────────────────
     feature_cols = []
 
@@ -106,6 +145,7 @@ def build_feature_vector(
 
     # Sequential / anomaly
     feature_cols.append("anomaly_score")
+    feature_cols.extend(INTERACTION_COLS)
 
     # Raw transaction
     for col in ["TransactionAmt", "card1", "card2", "card3", "card5"]:
@@ -172,6 +212,24 @@ def train_xgboost(
     model = XGBClassifier(**params)
     model.fit(X_train, y_train, verbose=False)
     print(f"      XGBoost trained ✅  ({params['n_estimators']} trees)")
+    return model
+
+
+def train_catboost(
+    X_train: pd.DataFrame,
+    y_train: np.ndarray,
+) -> object:
+    """Train the primary CatBoost classifier on the hybrid feature matrix."""
+    try:
+        from catboost import CatBoostClassifier
+    except ImportError:
+        print("❌ catboost not installed. Run: pip install catboost")
+        return None
+
+    print("[4.3] Training CatBoost (primary hybrid classifier) ...")
+    model = CatBoostClassifier(**CATBOOST_PARAMS)
+    model.fit(X_train, y_train)
+    print(f"      CatBoost trained ✅  ({CATBOOST_PARAMS['iterations']} iterations)")
     return model
 
 
@@ -333,13 +391,15 @@ def run_classification(
     Run full classification phase. Returns trained models and feature matrices.
     """
     xgb_path = MODELS_DIR / "xgb_model.pkl"
+    catboost_path = MODELS_DIR / "catboost_model.pkl"
     rf_path  = MODELS_DIR / "rf_model.pkl"
     lr_path  = MODELS_DIR / "lr_model.pkl"
 
-    if not force and xgb_path.exists() and rf_path.exists() and lr_path.exists():
+    if not force and xgb_path.exists() and catboost_path.exists() and rf_path.exists() and lr_path.exists():
         print("[Phase 4] ✅ Checkpoint found — loading models from disk ...")
         models = {
             "xgb": load_model("xgb"),
+            "catboost": load_model("catboost"),
             "rf":  load_model("rf"),
             "lr":  load_model("lr"),
         }
@@ -356,10 +416,11 @@ def run_classification(
     X_test,  y_test  = build_feature_vector(test_df,  cluster_df, scores_df)
 
     xgb_model = train_xgboost(X_train, y_train)
+    catboost_model = train_catboost(X_train, y_train)
     rf_model  = train_random_forest(X_train, y_train)
     lr_model  = train_logistic_regression(X_train, y_train)
 
-    models = {"xgb": xgb_model, "rf": rf_model, "lr": lr_model}
+    models = {"xgb": xgb_model, "catboost": catboost_model, "rf": rf_model, "lr": lr_model}
 
     # Save models
     for name, model in models.items():
@@ -367,9 +428,9 @@ def run_classification(
             save_model(model, name)
 
     # SHAP on XGBoost
-    if xgb_model is not None:
+    if catboost_model is not None:
         cluster_labels = X_test["cluster_label"].values if "cluster_label" in X_test.columns else None
-        run_shap_analysis(xgb_model, X_test, cluster_labels=cluster_labels)
+        run_shap_analysis(catboost_model, X_test, cluster_labels=cluster_labels)
 
     return {"models": models, "X_train": X_train, "y_train": y_train,
             "X_test": X_test, "y_test": y_test}

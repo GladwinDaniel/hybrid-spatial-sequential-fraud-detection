@@ -47,6 +47,14 @@ from config import (
     TOP_K_PERCENT, RANDOM_SEED,
 )
 
+
+INTERACTION_COLS = [
+    "contextual_surprise",
+    "spatial_switch",
+    "spatial_switch_rate",
+    "spatial_inconsistency",
+]
+
 MODEL_COLORS = {
     "Baseline XGBoost":   "#95a5a6",
     "Sequential-only":    "#3498db",
@@ -136,7 +144,7 @@ def compare_baselines(
     SPATIAL_COLS  = ["cluster_label", "risk_score", "addr1_enc", "addr2_enc",
                      "dist1_norm", "dist2_norm"]
     ANOMALY_COLS  = ["anomaly_score"]
-    COMBINED_DROP = SPATIAL_COLS + ANOMALY_COLS
+    COMBINED_DROP = SPATIAL_COLS + ANOMALY_COLS + INTERACTION_COLS
 
     results = []
 
@@ -149,15 +157,15 @@ def compare_baselines(
 
     # 2. Sequential-only — raw + anomaly_score, no spatial
     print("      Training Sequential-only ...")
-    X_tr_seq = _drop_cols(X_train, SPATIAL_COLS)
-    X_te_seq = _drop_cols(X_test,  SPATIAL_COLS)
+    X_tr_seq = _drop_cols(X_train, SPATIAL_COLS + INTERACTION_COLS)
+    X_te_seq = _drop_cols(X_test,  SPATIAL_COLS + INTERACTION_COLS)
     proba_seq = _retrain_xgb(X_tr_seq, y_train, X_te_seq, y_test)
     results.append(compute_metrics(y_test, proba_seq, model_name="Sequential-only"))
 
     # 3. Spatial-only — raw + spatial, no anomaly_score
     print("      Training Spatial-only ...")
-    X_tr_spa = _drop_cols(X_train, ANOMALY_COLS)
-    X_te_spa = _drop_cols(X_test,  ANOMALY_COLS)
+    X_tr_spa = _drop_cols(X_train, ANOMALY_COLS + INTERACTION_COLS)
+    X_te_spa = _drop_cols(X_test,  ANOMALY_COLS + INTERACTION_COLS)
     proba_spa = _retrain_xgb(X_tr_spa, y_train, X_te_spa, y_test)
     results.append(compute_metrics(y_test, proba_spa, model_name="Spatial-only"))
 
