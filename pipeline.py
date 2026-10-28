@@ -219,9 +219,7 @@ def main():
     log.info(f"\n{'='*65}")
     log.info(f"  ALL PHASES COMPLETE  |  Total time: {total:.1f}s")
     log.info(f"  Outputs saved to: outputs/")
-    log.info(f"  Run dashboard:    streamlit run dashboard/app.py")
     log.info(f"{'='*65}\n")
-
 
 if __name__ == "__main__":
     main()
