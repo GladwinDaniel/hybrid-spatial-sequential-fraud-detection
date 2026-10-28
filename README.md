@@ -1,241 +1,150 @@
 # Spatial-Context-Aware Sequential Pattern Mining for Financial Fraud Detection
 
-> **Course Project** | Sequential Data Mining & Spatial Data Mining  
-> **Dataset**: IEEE-CIS Fraud Detection (Kaggle / Vesta Corporation)
+This project explores whether adding spatial context to sequential transaction mining improves fraud detection on the IEEE-CIS dataset. The pipeline combines DBSCAN-based spatial clustering, adaptive PrefixSpan pattern mining, and a hybrid classification model that uses both raw transaction features and contextual fraud signals.
+
+The project is designed to run from the command line so the workflow stays focused on the research pipeline, model training, and outputs.
 
 ---
 
-## 🔬 Research Question
+## 1. Project goal
 
-> *Can integrating spatial cluster context into sequential transaction pattern mining significantly improve fraud detection performance over approaches that apply each technique independently?*
+The core hypothesis is that fraud signals become more informative when they are evaluated in a spatial and sequential context instead of using transaction features alone.
 
----
-
-## 🏗️ Framework Architecture
-
-```
-IEEE-CIS Dataset
-      │
-      ▼
-┌─────────────────────────┐
-│  Phase 1: Preprocessing │  Load, merge, impute, sequence construction
-└─────────────────────────┘
-      │
-      ▼
-┌─────────────────────────┐
-│  Phase 2: DBSCAN        │  ◄── SPATIAL DATA MINING
-│  Spatial Clustering     │  addr1, addr2, dist1, dist2 → clusters + risk scores
-└─────────────────────────┘
-      │
-      ▼
-┌─────────────────────────┐
-│  Phase 3: PrefixSpan    │  ◄── SEQUENTIAL DATA MINING (Core Novelty)
-│  Adaptive Mining        │  min_support(Ci) = base × (1 / risk_score(Ci))
-└─────────────────────────┘
-      │
-      ▼
-┌─────────────────────────┐
-│  Phase 4: CatBoost      │  CTS + Spatial + Sequential + Raw features
-│  Classification + SHAP  │  Interpretability via SHAP values
-└─────────────────────────┘
-      │
-      ▼
-┌─────────────────────────┐
-│  Phase 5: Evaluation    │  4-model comparison: Baseline / Seq-only / Spa-only / Hybrid
-└─────────────────────────┘
-```
+In practice, this means:
+- spatial clusters capture location-based behavior patterns,
+- sequential anomaly patterns capture unusual transaction trajectories,
+- the hybrid model combines these signals with standard fraud features.
 
 ---
 
-## 📁 Project Structure
+## 2. Key pipeline components
 
+1. Data preprocessing and feature engineering
+2. DBSCAN spatial clustering using address and distance features
+3. Adaptive PrefixSpan mining with cluster-aware minimum support
+4. Hybrid classification using CatBoost with contextual features
+5. Evaluation against baseline and ablation models
+
+The key innovation is the adaptive support logic:
+
+```python
+min_support(Ci) = base_support * (1 / risk_score(Ci))
 ```
-├── data/
-│   ├── raw/            # train_transaction.csv, train_identity.csv
-│   └── processed/      # Checkpointed pipeline outputs
-│
-├── scripts/
-│   └── download_data.py        # Kaggle API dataset download
-│
-├── src/
-│   ├── preprocessing.py        # Phase 1
-│   ├── spatial.py              # Phase 2
-│   ├── sequential.py           # Phase 3
-│   ├── classification.py       # Phase 4
-│   └── evaluation.py           # Phase 5
-│
-├── dashboard/
-│   ├── app.py                  # Streamlit main page
-│   └── pages/
-│       ├── 1_overview.py       # EDA & dataset stats
-│       ├── 2_spatial.py        # Cluster maps & risk scores
-│       ├── 3_sequential.py     # Pattern libraries & anomaly scores
-│       ├── 4_models.py         # ROC, PR, confusion matrices
-│       └── 5_explainability.py # SHAP analysis
-│
-├── outputs/
-│   ├── figures/        # All generated plots (.png)
-│   ├── models/         # Trained models (.pkl)
-│   └── reports/        # Results CSVs, LaTeX table
-│
-├── pipeline.py         # End-to-end runner
-├── config.py           # Centralized configuration
-└── requirements.txt    # All dependencies
-```
+
+This lowers the support threshold for high-risk clusters and raises it for lower-risk clusters, allowing the model to surface more suspicious patterns in risk-dense areas while reducing noise in low-risk regions.
 
 ---
 
-## 🚀 Quick Start
+## 3. Key findings from the generated outputs
 
-### 1. Install dependencies
+The final evaluation results saved in `outputs/reports/final_results.csv` show that the proposed hybrid model outperforms the baseline and ablation variants across the key metrics.
+
+| Model | AUC-ROC | PR-AUC | F1 | Precision | Recall | precision@top10% |
+|---|---:|---:|---:|---:|---:|---:|
+| Baseline XGBoost | 0.8836 | 0.5149 | 0.2320 | 0.1375 | 0.7408 | 0.1580 |
+| Sequential-only | 0.8824 | 0.5229 | 0.2278 | 0.1346 | 0.7408 | 0.1580 |
+| Spatial-only | 0.8829 | 0.5287 | 0.2416 | 0.1450 | 0.7225 | 0.1540 |
+| Proposed Hybrid | 0.8919 | 0.5576 | 0.2579 | 0.1558 | 0.7477 | 0.1610 |
+
+### Main takeaways
+- The hybrid model achieved the best AUC-ROC of 0.8919, improving over the baseline by about +0.0083.
+- The hybrid model achieved the best PR-AUC of 0.5576, improving over the baseline by about +0.0427.
+- The hybrid model achieved the best F1 score of 0.2579, improving over baseline by about +0.0259.
+- The hybrid model also produced the strongest precision at the top 10% risk threshold: 0.1610 vs 0.1580 baseline.
+
+These results suggest the spatial-sequential fusion provides measurable gains in fraud-ranking quality and classification performance compared with the raw-feature-only baseline.
+
+---
+
+## 4. Ablation study
+
+The ablation setup compares four variants trained under the same evaluation pipeline:
+
+1. Baseline XGBoost — raw transaction features only
+2. Sequential-only — raw features plus anomaly score
+3. Spatial-only — raw features plus spatial cluster/risk features
+4. Proposed Hybrid — complete feature set with spatial and sequential context
+
+### Ablation performance summary
+
+| Variant | AUC-ROC | PR-AUC | F1 |
+|---|---:|---:|---:|
+| Baseline XGBoost | 0.8836 | 0.5149 | 0.2320 |
+| Sequential-only | 0.8824 | 0.5229 | 0.2278 |
+| Spatial-only | 0.8829 | 0.5287 | 0.2416 |
+| Proposed Hybrid | 0.8919 | 0.5576 | 0.2579 |
+
+### Interpretation
+- Spatial context provides a stronger lift than sequential context in this setup: the spatial-only model has better PR-AUC and F1 than the sequential-only model.
+- The hybrid model is the best performer, which indicates that spatial context and sequential anomaly information are complementary rather than redundant.
+- The improvement is especially visible in precision-recall metrics, which are more informative under class imbalance than a raw accuracy score.
+
+---
+
+## 5. How to run the project
+
+### Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Download the dataset
+### Download the IEEE-CIS dataset
 
 ```bash
 python scripts/download_data.py
 ```
 
-**First-time setup for Kaggle API:**
-1. Go to [kaggle.com/settings](https://www.kaggle.com/settings) → API → **Create New Token**
-2. Move the downloaded `kaggle.json` to `C:\Users\<username>\.kaggle\kaggle.json`
-3. Accept competition rules at: https://www.kaggle.com/competitions/ieee-fraud-detection/rules
-
-### 3. Run the pipeline
+### Run the pipeline
 
 ```bash
-# Sample mode (100K rows, ~10-20 min depending on hardware)
+# Sample run (default)
 python pipeline.py
 
-# Full dataset (~590K rows, may take 1-2 hours)
+# Full dataset run
 python pipeline.py --full
 
-# Re-run from scratch (ignore checkpoints)
+# Re-run from scratch
 python pipeline.py --force
 
-# Run specific phases only
-python pipeline.py --phase 3 4 5
+# Run only selected phases
+python pipeline.py --phase 1 2 3 4 5
 ```
 
-### 4. Launch the dashboard
+### Output locations
 
-```bash
-streamlit run dashboard/app.py
+- Reports: `outputs/reports/`
+- Figures: `outputs/figures/`
+- Trained models: `outputs/models/`
+- Pipeline log: `outputs/pipeline.log`
+
+---
+
+## 6. Notes
+
+- This research uses the IEEE-CIS Fraud Detection dataset from Kaggle / Vesta Corporation.
+- The project assumes the Kaggle API credentials are configured correctly before the dataset download step.
+- The final results are taken from the generated output files in `outputs/reports/final_results.csv` and represent the current experimental run for this repository state.
+
+---
+
+## 7. Files in the repository
+
+```text
+├── config.py
+├── pipeline.py
+├── requirements.txt
+├── scripts/
+│   └── download_data.py
+├── src/
+│   ├── preprocessing.py
+│   ├── spatial.py
+│   ├── sequential.py
+│   ├── classification.py
+│   └── evaluation.py
+├── outputs/
+│   ├── figures/
+│   ├── models/
+│   └── reports/
+└── README.md
 ```
-
----
-
-## 📊 Dashboard Pages
-
-| Page | Content |
-|---|---|
-| **Overview** | Dataset stats, class distribution, transaction amount, fraud over time |
-| **Spatial Analysis** | DBSCAN cluster risk scores, PCA/UMAP projections, cluster size vs. fraud rate |
-| **Sequential Patterns** | Adaptive support per cluster, anomaly score distributions, pattern library browser |
-| **Model Comparison** | AUC-ROC, PR-AUC, F1 table, grouped bar chart, radar chart, ROC/PR/confusion matrix tabs |
-| **Explainability** | Global SHAP beeswarm, SHAP bar chart, per-cluster SHAP viewer, interpretation guide |
-
----
-
-## 🔑 Core Novelty
-
-The **adaptive minimum support formula** is the key contribution:
-
-```python
-min_support(Ci) = base_support × (1 / risk_score(Ci))
-
-# where:
-# risk_score(Ci) = fraud_rate(Ci) / global_fraud_rate
-```
-
-- **High-risk clusters** (risk_score > 2.0) → lower min_support → more patterns extracted → **more sensitive detection**
-- **Low-risk clusters** (risk_score < 0.5) → higher min_support → fewer false positives
-
-### Contextual Trajectory Surprise (CTS)
-
-The classifier now receives a second interaction layer rather than treating
-spatial and sequential outputs as independent columns. For each transaction,
-CTS combines:
-
-- `contextual_surprise = anomaly_score × (1 + log(1 + risk_score))`
-- `spatial_switch` and `spatial_switch_rate`: whether the user's recent path changes spatial cluster
-- `spatial_inconsistency`: deviation from the user's typical normalized distance
-
-This captures a more specific fraud hypothesis: a sequence becomes more
-suspicious when it is unusual for the local risk context, when the user moves
-between spatial contexts, or when its distance profile departs from that
-user's normal trajectory. This is proposed as the project's differentiating
-method and should be validated against a targeted literature review before
-being described as globally unprecedented.
-
-On the current 100K-row time-based split, CTS improved the hybrid model from
-PR-AUC `0.5350` to `0.5418`, ROC-AUC `0.8827` to `0.8866`, F1 `0.2366` to
-`0.2546`, and precision@top-10% `0.1525` to `0.1620`. These values are an
-experiment result, not a guaranteed full-dataset outcome.
-
----
-
-## ⚙️ Configuration (`config.py`)
-
-All hyperparameters are centralized:
-
-| Parameter | Default | Description |
-|---|---|---|
-| `USE_SAMPLE` | `True` | Sample 100K rows for fast execution |
-| `SAMPLE_SIZE` | `100_000` | Rows to sample |
-| `DBSCAN_EPS` | `0.5` | DBSCAN epsilon (auto-tuned via k-distance) |
-| `DBSCAN_MIN_SAMPLES` | `5` | DBSCAN min cluster size |
-| `PREFIXSPAN_BASE_SUPPORT` | `0.05` | Base minimum support (5%) |
-| `SUPPORT_FLOOR` | `0.01` | Minimum adaptive support floor |
-| `SUPPORT_CEILING` | `0.20` | Maximum adaptive support ceiling |
-| `CATBOOST_PARAMS` | see config | Primary hybrid classifier hyperparameters |
-| `XGB_PARAMS` | see config | XGBoost ablation hyperparameters |
-
----
-
-## 📈 Evaluation Targets
-
-| Model | AUC-ROC | PR-AUC |
-|---|---|---|
-| Baseline XGBoost | ~0.87 | ~0.60 |
-| Sequential-only | ~0.89 | ~0.65 |
-| Spatial-only | ~0.88 | ~0.63 |
-| **Proposed Hybrid** | **> 0.92** | **> 0.75** |
-
----
-
-## 🛠️ Technology Stack
-
-| Category | Tool |
-|---|---|
-| Language | Python 3.10+ |
-| Data Processing | pandas, numpy |
-| ML / Classification | scikit-learn, xgboost |
-| Sequential Mining | prefixspan |
-| Spatial Clustering | scikit-learn (DBSCAN) |
-| Class Imbalance | imbalanced-learn |
-| Explainability | shap |
-| Dimensionality Reduction | umap-learn |
-| Visualization | matplotlib, seaborn, plotly |
-| Dashboard | streamlit |
-| Dataset Download | kaggle |
-
----
-
-## 📚 References
-
-Key papers informing this framework:
-1. Liu et al. (2023) — USPM-FrauD: Sequential pattern mining for banking fraud
-2. Kumar et al. (2022) — Fraud detection via DBSCAN + Random Forest
-3. Zhang et al. (2021) — PrefixSpan for anomalous transaction sequences
-4. Rajapaksha & Bergmeir (2023) — Geospatial risk modeling for AML
-5. Tian et al. (2024) — CaT-GNN: Causal temporal GNN (SOTA baseline)
-
-*Full literature review in `research_proposal.md`.*
-
----
-
-*Dataset: IEEE-CIS Fraud Detection (Kaggle). Framework: Spatial-Context-Aware Sequential Pattern Mining.*

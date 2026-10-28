@@ -45,3 +45,15 @@ outputs/logs/
 .vscode/
 .idea/
 *.swp
+
+# ─── Model Training Telemetry ─────────────────────────────────
+catboost_info/
+
+# ─── LaTeX Auxiliary Files ────────────────────────────────────
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+*.synctex.gz
+
